@@ -1,6 +1,7 @@
 import load
 import locations
 from progressbar import progressbar
+import textwrap
 
 def load_all_manifests(filenames = None):
     return load.load_all_manifests(filenames)
@@ -115,6 +116,18 @@ class Segment:
     def __repr__(self):
         m = f"<Segment {self.identifier} {int(self.segment_id):>4} "
         m += f" {self.duration:>5.2f} s  ({self.split})"
+        return m
+
+    def __str__(self):
+        m = self.__repr__() + '\n'
+        items = self.__dict__.items()
+        o = []
+        for k,v in self.__dict__.items():
+            if k in ['episode', 'program']: continue
+            if k in ['text', 'whisper_text'] and v is not None: 
+                v = textwrap.fill(v, width=80, subsequent_indent=' ' * 20)
+            o.append(f'{k:<18}: {v}')
+        m += '\n'.join(o)
         return m
         
 
