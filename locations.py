@@ -13,3 +13,14 @@ train_filenames = list(train.glob("*.json"))
 
 
 manifest_filenames = test_filenames + validations_filenames + train_filenames
+
+csv_dir = BASE_DIR / "csv"
+csv_test = csv_dir / "test_segments.csv"
+csv_validation = csv_dir / "validation_segments.csv"
+csv_train = csv_dir / "train_segments.csv"
+
+episode_dict_filename = BASE_DIR / "episode_id_dict.json"
+
+program_directory = BASE_DIR / "programs"
+program_info_filename = BASE_DIR / "program_info.json"
+
