@@ -1,0 +1,91 @@
+from collections import Counter
+import json
+import load
+import locations
+from progressbar import progressbar
+
+locations.program_directory.mkdir(exist_ok=True)
+
+def _find_episode_indices(name, names):
+    return [i for i, x in enumerate(names) if x == name]
+
+def make_program_files(d = None, names = None):
+    if d is None:
+        d = make_or_load_episode_dict()
+    if names is None:
+        names = [x[0][0].split('/')[-1].split('-')[0] for x in ed.values()]
+    episode_ids = list(d.keys())
+    episode_count = Counter(names)
+    program_names = list(set(names))
+    other_programs = {}
+    for name in progressbar(program_names):
+        indices = _find_episode_indices(name, names)
+        program_episode_ids = [episode_ids[i] for i in indices]
+        if len(program_episode_ids) == 1:
+            program = handle_program(name, program_episode_ids, d, save=False)
+            other_programs[name] = program
+        else:
+            handle_program(name, program_episode_ids, d, save=True)
+    other_filename = locations.program_directory / "other_programs.json"
+    m = f"Writing other programs file {other_filename} with "
+    m += f"{len(other_programs)} programs."
+    print(m)
+    with open(other_filename, 'w') as f:
+        json.dump(other_programs, f)
+
+def handle_program(name, program_episode_ids, d, save = True):
+        filename = locations.program_directory / f"{name}.json"
+        episodes = {eid: d[eid] for eid in program_episode_ids}
+        duration = 0
+        n_segments = 0
+        for episode in episodes.values():
+            for segment in episode:
+                duration += segment[-2]
+            n_segments += len(episode)
+        n_episodes = len(episodes)
+        program_dict = {
+            'name': name,
+            'n_episodes': n_episodes,
+            'n_segments': n_segments,
+            'total_duration': duration,
+            'episodes': episodes
+        }
+         
+        if save:
+            m = f"Writing program file {filename} with {len(program_episode_ids)}."
+            m += f" episodes, {n_segments} segments, {duration/3600:.2f} hours."
+            print(m)
+            with open(filename, 'w') as f:
+                json.dump(program_dict, f)
+        return program_dict
+
+def _make_program_info(overwrite = False):
+    if locations.program_info_filename.exists() and not overwrite:
+        print(f"Program info file {locations.program_info_filename} exists.")
+        return
+    names = load_program_names()
+    output = {}
+    other_programs = load._load_other_programs()
+    for name in progressbar(names):
+        program = load_program(name, other_programs)
+        if program is None:
+            program = other_programs[name]
+        del program['episodes']
+        program['total_duration_hours'] = program['total_duration'] / 3600
+        del program['total_duration']
+        output[name] = program
+    with open(locations.program_info_filename, 'w') as f:
+        json.dump(output, f, indent=4)
+        
+    
+def load_program(name, other_programs = None):
+    return load.load_program(name, other_programs = other_programs)
+
+def load_program_names():
+    return load.load_program_names()
+        
+def load_program_info():
+    return load.load_program_info()
+
+        
+    
