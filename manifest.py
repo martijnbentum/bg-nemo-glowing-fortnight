@@ -1,45 +1,21 @@
 import load
 import locations
 from progressbar import progressbar
+import segment_matcher
 import textwrap
 
 def load_all_manifests(filenames = None):
     return load.load_all_manifests(filenames)
 
-class Program:
-    def __init__(self, name, segments):
-        self.name = name
-        self.segments = segments
-        self.identifiers = set(s.identifier for s in segments)
-        self.episodes = []
-        for identifier in self.identifiers:
-            segments = [s for s in segments if s.identifier == identifier]
-            segments.sort()
-            episode = Episode(identifier, segments, self)
-            self.episodes.append(episode)
-        self.episodes.sort(key = lambda x: x.identifier)
-
-    def __repr__(self):
-        m = f"<Program {self.name} "
-        m += f"({len(self.episodes)} episodes, {len(self.segments)} segments)>"
-        return m
-
-    def to_json(self):
-        d = {
-            'name': self.name,
-            'total_duration': sum(s.duration for s in self.segments),
-            'episodes': {e.identifier: e.to_json() for e in self.episodes}
-        }
-
 class Episode:
-    def __init__(self, identifier, segments, program):
+    def __init__(self, identifier, segments, parent = None, do_match = True):
         self.identifier = identifier
         self.segments = segments
+        self.parent = parent
         self.name = segments[0].name if segments else None
-        self.program = program
         for segment in segments:
             segment.episode = self
-            segment.program = program
+        self._handle_match()
 
     def __repr__(self):
         m = f"<Episode {self.name} {self.identifier} "
@@ -54,12 +30,32 @@ class Episode:
             'segments': [s.to_json() for s in self.segments]
         }
 
+    def csv_segments(self):
+        other_programs = self.parent.other_programs if self.parent else None
+        csv_segments = load.load_csv_episode_segments(
+            self.name, self.identifier, other_programs)
+        return csv_segments
+
+    def _handle_match(self):
+        try: segment_matcher.match_episode_segments(
+            self.segments, self.csv_segments(), self.identifier)
+        except Exception as e:
+            print(f"Error matching segments for episode {self.identifier}: {e}")
+            self.match_ok = False
+        else: self.match_ok = True
+
 class Segments:
-    def __init__(self, segments = None, manifest_filenames = None):
-        if segments is None:
-            self._handle_make_segments(manifest_filenames)
-        else: self.segments = segments
-        self.segments.sort(key = lambda x: (x.identifier, int(x.segment_id)))
+    def __init__(self, manifest_filenames = None, other_programs = None, 
+        do_match = True):
+        if manifest_filenames is None:
+            manifest_filenames = locations.manifest_filenames
+        if other_programs is None:
+            self.other_programs = load._load_other_programs()
+        else: self.other_programs = other_programs
+        self.do_match = do_match
+        self._handle_make_segments(manifest_filenames)
+        self._handle_make_episodes()
+        self.match_handled = do_match
 
     def __repr__(self):
         return f"<Segments {len(self.segments)} segments>"
@@ -76,27 +72,35 @@ class Segments:
                 line['split'] = item['split']
                 segment = Segment(**line)
                 self.segments.append(segment)
+        self.segments.sort(key = lambda x: (x.name, x.identifier, int(x.segment_id)))
 
-    def make_programs(self):
-        self.programs = []
-        names = set(s.name for s in self.segments)
-        for name in progressbar(names):
-            segments = [s for s in self.segments if s.name == name]
-            program = Program(name, segments)
-            self.programs.append(program)
-        self.programs.sort(key = lambda x: x.name)
-    
+    def _handle_make_episodes(self):
+        self.episodes = []
+        identifier = self.segments[0].identifier
+        segments = []
+        for segment in progressbar(self.segments):
+            if segment.identifier != identifier:
+                self.episodes.append(Episode(identifier, segments, self,
+                    do_match = self.do_match))
+                segments = []
+                identifier = segment.identifier
+            segments.append(segment)
+        if segments:
+            self.episodes.append(Episode(identifier, segments, self,
+                do_match = self.do_match))
+        self.episodes.sort(key = lambda x: (x.name, x.identifier))
 
-    def to_program_json(self):
-        if not hasattr(self, 'programs'):
-            self.make_programs()
-        d = {}
-        for program in self.programs:
-            d[program.name] = program.to_json()
-        return d
 
     def to_segment_json(self):
         return [segment.to_json() for segment in self.segments]
+
+    def handle_match(self):
+        if self.match_handled: 
+            print("Match already handled.")
+            return
+        for episode in progressbar(self.episodes):
+            episode._handle_match()
+        self.match_handled = True
 
 class Segment:
     def __init__(self, text, audio_filepath, name, identifier, segment_id,
