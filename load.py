@@ -46,7 +46,7 @@ def audio_filepath_to_info(filename):
         name, identifier, segment_id = o
     elif len(o) == 2:
         identifier, segment_id = o
-        name = None
+        name = '~~~no_name~~~'
     else:
         m = f"Filename {filename} does not conform to expected format:"
         m += " 'name-identifier-segment_id.ext'"
@@ -77,7 +77,7 @@ def _make_csv_episode_id_dict(filename):
         episode_id_dict[identifier].append(line) 
     return episode_id_dict
 
-def make_or_load_episode_dict(overwrite=False):
+def _make_or_load_csv_episode_dict(overwrite=False):
     if locations.episode_dict_filename.exists() and not overwrite:
         print(f'Loading episode dict from {locations.episode_dict_filename}')
         with open(locations.episode_dict_filename) as f:
@@ -133,4 +133,12 @@ def load_program_info():
         d = json.load(f)
     return d
 
+
+def load_csv_episode_segments(program_name, episode_id, other_programs = None):
+    program = load_program(program_name, other_programs)
+    if episode_id not in program['episodes']:
+        m = f"Episode id {episode_id} not found in program {program_name}."
+        raise ValueError(m)
+    csv_segments = program['episodes'][episode_id]
+    return csv_segments
 
