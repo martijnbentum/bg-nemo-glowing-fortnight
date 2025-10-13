@@ -53,7 +53,9 @@ class Segments:
             self.other_programs = load._load_other_programs()
         else: self.other_programs = other_programs
         self.do_match = do_match
+        print('make segments')
         self._handle_make_segments(manifest_filenames)
+        print('make episodes')
         self._handle_make_episodes()
         self.match_handled = do_match
 
