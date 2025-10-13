@@ -146,7 +146,12 @@ class Segment:
         d = {}
         keys = ['audio_filepath', 'text', 'duration', 'name', 'identifier',
             'segment_id', 'tar_filename', 'manifest_filename', 'split']
+        optional_keys = ['whisper_text', 'start_time', 'end_time', 
+            'levenshtein_ratio']
         for k in keys:
             d[k] = getattr(self, k)
+        for k in optional_keys:
+            if hasattr(self, k):
+                d[k] = getattr(self, k)
         return d
 
