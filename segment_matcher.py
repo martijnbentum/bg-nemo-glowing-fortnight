@@ -1,6 +1,8 @@
 import load
 from progressbar import progressbar
 
+
+
 def match_episode_segments(manifest_segments, csv_segments, identifier):
     if len(manifest_segments) != len(csv_segments):
         m = "Number of segments in manifest and CSV do not match."
@@ -18,7 +20,7 @@ def match_episode_segments(manifest_segments, csv_segments, identifier):
         m.start_time = round(c[1] / 16000, 3)
         m.end_time = round(c[2] / 16000, 3)
 
-def match_all_segments(manifest_segments, episode_id_dict):
+def match_segments(segments):
     current_id = manifest_segments.segments[0].identifier
     segments = []
     for segment in progressbar(manifest_segments.segments):
@@ -33,8 +35,6 @@ def match_all_segments(manifest_segments, episode_id_dict):
         else:
             segments.append(segment)
         
-
-
 def check_identifier(manifest_segments, csv_segments, identifier):
     mids = list(set([x.identifier for x in manifest_segments]))
     if len(mids) != 1: 
