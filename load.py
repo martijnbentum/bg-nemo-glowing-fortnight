@@ -80,7 +80,7 @@ def _make_csv_episode_id_dict(filename):
 def _make_or_load_csv_episode_dict(overwrite=False):
     if locations.episode_dict_filename.exists() and not overwrite:
         print(f'Loading episode dict from {locations.episode_dict_filename}')
-        with open(locations.episode_dict_filename) as f:
+        with open(locations.csv_episode_dict_filename) as f:
             d = episode_id_dict = json.load(f)
         return d
     print('Creating episode dict from CSV segment files.')
