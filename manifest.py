@@ -46,7 +46,7 @@ class Episode:
 
 class Segments:
     def __init__(self, manifest_filenames = None, other_programs = None, 
-        do_match = True, make_episodes = True):
+        do_match = True, make_episodes = False):
         if manifest_filenames is None:
             manifest_filenames = locations.manifest_filenames
         if other_programs is None:
@@ -122,7 +122,7 @@ class Segment:
         self.program = None
 
     def __repr__(self):
-        m = f"<Segment {self.identifier} {int(self.segment_id):>4} "
+        m = f"<Segment {self.name} {self.identifier} {int(self.segment_id):>4} "
         m += f" {self.duration:>5.2f} s  ({self.split})"
         return m
 
