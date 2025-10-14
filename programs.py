@@ -9,13 +9,20 @@ locations.program_directory.mkdir(exist_ok=True)
 def _find_episode_indices(name, names):
     return [i for i, x in enumerate(names) if x == name]
 
+def csv_episode_dict_to_names(d):
+    names = [k.split('-')[0] for k in d.keys()]
+    return names
+
+def csv_episode_dict_to_episode_ids(d):
+    episode_ids = [k.split('-')[-1] for k in d.keys()]
+    return episode_ids
+
 def make_program_files(d = None, names = None):
     if d is None:
-        d = make_or_load_episode_dict()
+        d = load.make_or_load_csv_episode_dict()
     if names is None:
-        names = [x[0][0].split('/')[-1].split('-')[0] for x in ed.values()]
-    episode_ids = list(d.keys())
-    episode_count = Counter(names)
+        names = csv_episode_dict_to_names(d)
+    episode_ids = csv_episode_dict_to_episode_ids(d)
     program_names = list(set(names))
     other_programs = {}
     for name in progressbar(program_names):
@@ -33,14 +40,15 @@ def make_program_files(d = None, names = None):
     with open(other_filename, 'w') as f:
         json.dump(other_programs, f)
 
+
 def handle_program(name, program_episode_ids, d, save = True):
         filename = locations.program_directory / f"{name}.json"
-        episodes = {eid: d[eid] for eid in program_episode_ids}
+        episodes = {eid: d[name+'-'+eid] for eid in program_episode_ids}
         duration = 0
         n_segments = 0
         for episode in episodes.values():
             for segment in episode:
-                duration += segment[-2]
+                duration += segment[-3]
             n_segments += len(episode)
         n_episodes = len(episodes)
         program_dict = {
