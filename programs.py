@@ -18,6 +18,10 @@ def csv_episode_dict_to_episode_ids(d):
     return episode_ids
 
 def make_program_files(d = None, names = None):
+    '''make program json files from the csv episode dict
+    the program files are stored in locations.program_directory
+    they are based on the csv files with whisper metadata
+    '''
     if d is None:
         d = load.make_or_load_csv_episode_dict()
     if names is None:
@@ -42,32 +46,38 @@ def make_program_files(d = None, names = None):
 
 
 def handle_program(name, program_episode_ids, d, save = True):
-        filename = locations.program_directory / f"{name}.json"
-        episodes = {eid: d[name+'-'+eid] for eid in program_episode_ids}
-        duration = 0
-        n_segments = 0
-        for episode in episodes.values():
-            for segment in episode:
-                duration += segment[-3]
-            n_segments += len(episode)
-        n_episodes = len(episodes)
-        program_dict = {
-            'name': name,
-            'n_episodes': n_episodes,
-            'n_segments': n_segments,
-            'total_duration': duration,
-            'episodes': episodes
-        }
-         
-        if save:
-            m = f"Writing program file {filename} with {len(program_episode_ids)}."
-            m += f" episodes, {n_segments} segments, {duration/3600:.2f} hours."
-            print(m)
-            with open(filename, 'w') as f:
-                json.dump(program_dict, f)
-        return program_dict
+    '''make a single program json file with all associated episodes
+    '''
+    filename = locations.program_directory / f"{name}.json"
+    episodes = {eid: d[name+'-'+eid] for eid in program_episode_ids}
+    duration = 0
+    n_segments = 0
+    for episode in episodes.values():
+        for segment in episode:
+            duration += segment[-3]
+        n_segments += len(episode)
+    n_episodes = len(episodes)
+    program_dict = {
+        'name': name,
+        'n_episodes': n_episodes,
+        'n_segments': n_segments,
+        'total_duration': duration,
+        'episodes': episodes
+    }
+     
+    if save:
+        m = f"Writing program file {filename} with {len(program_episode_ids)}."
+        m += f" episodes, {n_segments} segments, {duration/3600:.2f} hours."
+        print(m)
+        with open(filename, 'w') as f:
+            json.dump(program_dict, f)
+    return program_dict
 
 def _make_program_info(overwrite = False):
+    '''make a single json file with summary info for all programs
+    the information is the same as in the program files except the episodes
+    are removed and total duration is in hours
+    '''
     if locations.program_info_filename.exists() and not overwrite:
         print(f"Program info file {locations.program_info_filename} exists.")
         return
@@ -78,6 +88,9 @@ def _make_program_info(overwrite = False):
         program = load_program(name, other_programs)
         if program is None:
             program = other_programs[name]
+        if 'episodes' not in program:
+            print(f"Program {name} has no episodes.")
+            continue
         del program['episodes']
         program['total_duration_hours'] = program['total_duration'] / 3600
         del program['total_duration']

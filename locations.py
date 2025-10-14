@@ -24,3 +24,4 @@ csv_episode_dict_filename = BASE_DIR / "csv_episode_id_dict.json"
 program_directory = BASE_DIR / "new_programs"
 program_info_filename = BASE_DIR / "program_info.json"
 
+manifest_program_directory = BASE_DIR / "manifest_programs"

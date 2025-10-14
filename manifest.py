@@ -1,3 +1,5 @@
+import json
+import Levenshtein
 import load
 import locations
 from progressbar import progressbar
@@ -5,6 +7,8 @@ import segment_matcher
 import textwrap
 
 def load_all_manifests(filenames = None):
+    '''Load all manifest files corresponding to tarred sets of audio files.
+    '''
     return load.load_all_manifests(filenames)
 
 class Episode:
@@ -42,7 +46,12 @@ class Episode:
         except Exception as e:
             print(f"Error matching segments for episode {self.identifier}: {e}")
             self.match_ok = False
-        else: self.match_ok = True
+        else: 
+            self.match_ok = True
+            for s in self.segments:
+                s.levenshtein_ratio = Levenshtein.ratio(s.text.lower(), 
+                    s.whisper_text.lower())
+                
 
 class Segments:
     def __init__(self, manifest_filenames = None, other_programs = None, 
@@ -174,7 +183,8 @@ def identifier_to_episode(identifier, segments, do_match = True,
         return episodes
     return Episode(identifier, segments, segments_object, do_match = do_match)
 
-def identifiers_to_episode(identifiers, segments, do_match = True):
+def identifiers_to_episode(identifiers, segments, do_match = True,
+    segments_object = None):
     print('select segments with given identifiers')
     selection = []
     for segment in progressbar(segments):
@@ -183,8 +193,93 @@ def identifiers_to_episode(identifiers, segments, do_match = True):
     episodes = []
     print(f'making {len(identifiers)} episodes')
     for identifier in progressbar(identifiers):
-        episodes.append(identifier_to_episode(identifier, selection, do_match))
+        episodes.append(identifier_to_episode(identifier, selection, do_match,
+            segments_object))
     return episodes
-    
 
+
+    
+def make_manifest_programs(segments):
+    '''Given a Segments object, make manifest program files for each program
+    this links csv segments to manifest segments and checks the levenshtein ratio
+    '''
+    print('extracting program names')
+    names = [s.name for s in segments.segments]
+    print('grouping segments by program name')
+    segment_slices = program_names_to_segment_slices(names, segments.segments)
+    other_programs = {}
+    for segment_slice in progressbar(segment_slices):
+        ids = list(set([s.identifier for s in segment_slice]))
+        if len(ids) != 1: continue
+        eps = identifiers_to_episode(ids, segment_slice, do_match = True,
+            segments_object = segments)
+        d = episodes_to_manifest_program_json(eps, save = True)
+        if d['n_episodes'] == 1:
+            other_programs[d['name']] = d
+    other_filename = locations.manifest_program_directory / "other_programs.json"
+    with open(other_filename, 'w') as f:
+        json.dump(other_programs, f)
+
+def program_names_to_segment_slices(program_names, segments):
+    ids = _find_string_ranges(program_names)
+    pn = list(set(program_names))
+    segment_slices = []
+    for name in pn:
+        start, end = ids[name]
+        segment_slices.append(segments[start:end])
+    return segment_slices
+
+def episodes_to_manifest_program_json(episodes, save = True):
+    check_episodes(episodes)
+    d = {}
+    d['name'] = episodes[0].name 
+    d['n_episodes'] = len(episodes)
+    d['n_segments'] = sum(len(e.segments) for e in episodes)
+    d['total_duration'] = sum(s.duration for e in episodes for s in e.segments)
+    d['episodes'] = {e.identifier: e.to_json() for e in episodes}
+    lr = [s.levenshtein_ratio for e in episodes for s in e.segments]
+    d['min_levenshtein_ratio'] = min(lr) if lr else None
+    if len(episodes) == 1: 
+        print('only one episode, not saving manifest program file')
+        return d
+    if save:
+        filename = locations.manifest_program_directory / f"{d['name']}.json"
+        with open(filename, 'w') as f:
+            json.dump(d, f)
+    return d
+
+def _find_string_ranges(sorted_strings):
+    """
+    Given a sorted list of strings, return a dict mapping each unique string
+    to its (start_index, end_index) in the list (end is exclusive).
+    """
+    ranges = {}
+    if not sorted_strings:
+        return ranges
+
+    start = 0
+    current = sorted_strings[0]
+
+    for i, s in enumerate(sorted_strings[1:], start=1):
+        if s != current:
+            ranges[current] = (start, i)
+            start = i
+            current = s
+
+    # add the last group
+    ranges[current] = (start, len(sorted_strings))
+    return ranges
+
+def check_episodes(episodes):
+    names = list(set([e.name for e in episodes]))
+    if len(names) != 1:
+        m = "Episodes do not all have the same name."
+        m += f" Found {names}"
+        raise ValueError(m)
+    for e in episodes:
+        for s in e.segments:
+            if s.levenshtein_ratio < .7:
+                m = f"Low Levenshtein ratio {s.levenshtein_ratio:.2f} "
+                m += f"for segment {s.name} {s.identifier} {s.segment_id} "
+                print(m)
 

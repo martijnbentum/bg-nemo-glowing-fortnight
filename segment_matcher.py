@@ -1,9 +1,14 @@
 import load
 from progressbar import progressbar
 
-
-
 def match_episode_segments(manifest_segments, csv_segments, identifier):
+    '''manifest_segments is a list of Segment objects
+    they contain lower cased text and do not have a start or end time
+
+    csv_segments is a list of lists from the csv file
+    they contain the original whisper text and start and end samples
+    
+
     if len(manifest_segments) != len(csv_segments):
         m = "Number of segments in manifest and CSV do not match."
         m += f" manifest: {len(manifest_segments)} CSV: {len(csv_segments)}"
@@ -11,7 +16,7 @@ def match_episode_segments(manifest_segments, csv_segments, identifier):
         raise ValueError(m)
     check_identifier(manifest_segments, csv_segments, identifier)
     for m, c in zip(manifest_segments, csv_segments):
-        csv_duration = c[-2]
+        csv_duration = c[-3]
         if abs(m.duration - csv_duration) > 0.1:
             m = f"Segment durations do not match for identifier {identifier}."
             m += f" Manifest: {m.duration}, CSV: {csv_duration}"
