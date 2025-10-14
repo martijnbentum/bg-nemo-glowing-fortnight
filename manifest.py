@@ -46,17 +46,19 @@ class Episode:
 
 class Segments:
     def __init__(self, manifest_filenames = None, other_programs = None, 
-        do_match = True):
+        do_match = True, make_episodes = True):
         if manifest_filenames is None:
             manifest_filenames = locations.manifest_filenames
         if other_programs is None:
             self.other_programs = load._load_other_programs()
         else: self.other_programs = other_programs
+        if not make_episodes: do_match = False
         self.do_match = do_match
         print('make segments')
         self._handle_make_segments(manifest_filenames)
-        print('make episodes')
-        self._handle_make_episodes()
+        if make_episodes:
+            print('make episodes')
+            self._handle_make_episodes()
         self.match_handled = do_match
 
     def __repr__(self):
@@ -156,4 +158,33 @@ class Segment:
             if hasattr(self, k):
                 d[k] = getattr(self, k)
         return d
+
+def identifier_to_episode(identifier, segments, do_match = True, 
+    segments_object = None):
+    segments = [s for s in segments if s.identifier == identifier]
+    names = list(set([x.name for x in segments]))
+    if len(names) > 1:
+        episodes = []
+        print(f'Warning: identifier {identifier} has segments from ')
+        print(f'multiple names: {names}, return multiple episodes')
+        for name in names:
+            sub_segments = [s for s in segments if s.name == name]
+            episodes.append(Episode(identifier, sub_segments, 
+                segments_object, do_match = do_match))
+        return episodes
+    return Episode(identifier, segments, segments_object, do_match = do_match)
+
+def identifiers_to_episode(identifiers, segments, do_match = True):
+    print('select segments with given identifiers')
+    selection = []
+    for segment in progressbar(segments):
+        if segment.identifier in identifiers:
+            selection.append(segment)
+    episodes = []
+    print(f'making {len(identifiers)} episodes')
+    for identifier in progressbar(identifiers):
+        episodes.append(identifier_to_episode(identifier, selection, do_match))
+    return episodes
+    
+
 
