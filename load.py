@@ -4,6 +4,8 @@ import pandas as pd
 from pathlib import Path
 from progressbar import progressbar
 
+NO_NAME = '~~~no_name~~~'
+
 def load_manifest(filename):
     with open(filename) as f:
         t = f.read().split('\n')
@@ -46,7 +48,7 @@ def audio_filepath_to_info(filename):
         name, identifier, segment_id = o
     elif len(o) == 2:
         identifier, segment_id = o
-        name = '~~~no_name~~~'
+        name = NO_NAME
     else:
         m = f"Filename {filename} does not conform to expected format:"
         m += " 'name-identifier-segment_id.ext'"
@@ -60,26 +62,32 @@ def audio_filepath_to_info(filename):
 def load_csv(filename):
     df = pd.read_csv(filename)
     header = list(df.columns)
-    header.append('identifier')
+    header.extend(['name','identifier'])
     data = df.values.tolist()
     for line in data:
-        identifier = line[0].split('.')[0].split('-')[-1]
-        line.append(identifier)
+        stem = line[0].split('/')[-1].split('.')[0]
+        try: name, identifier = stem.split('-')
+        except: 
+            print(f'Filename {stem} does not conform to expected format')
+            identifier = stem.split('-')[-1]
+            name = NO_NAME
+        line.extend([name,identifier])
     return header, data
 
-def _make_csv_episode_id_dict(filename):
+def _make_csv_episode_id_dict(filename, episode_id_dict = {}):
     header, data = load_csv(filename)
-    episode_id_dict = {}
-    for line in data:
-        identifier = line[-1]
+    print(f'handling {filename} with {len(data)} rows')
+    for line in progressbar(data):
+        identifier = '-'.join(line[-2:])
         if identifier not in episode_id_dict:
             episode_id_dict[identifier] = []
         episode_id_dict[identifier].append(line) 
     return episode_id_dict
 
-def _make_or_load_csv_episode_dict(overwrite=False):
-    if locations.episode_dict_filename.exists() and not overwrite:
-        print(f'Loading episode dict from {locations.episode_dict_filename}')
+def _make_or_load_csv_program_episode_dict(overwrite=False):
+    if locations.csv_episode_dict_filename.exists() and not overwrite:
+        p = locations.csv_episode_dict_filename
+        print(f'Loading episode dict from {p}')
         with open(locations.csv_episode_dict_filename) as f:
             d = episode_id_dict = json.load(f)
         return d
@@ -88,10 +96,9 @@ def _make_or_load_csv_episode_dict(overwrite=False):
     filenames = [locations.csv_test, locations.csv_validation, 
         locations.csv_train]
     for filename in filenames:
-        d = _make_csv_episode_id_dict(filename)
-        episode_id_dict.update(d)
-    print(f'Saving episode dict to {locations.episode_dict_filename}')
-    with open(locations.episode_dict_filename, 'w') as f:
+        _make_csv_episode_id_dict(filename, episode_id_dict)
+    print(f'Saving episode dict to {locations.csv_episode_dict_filename}')
+    with open(locations.csv_episode_dict_filename, 'w') as f:
         json.dump(episode_id_dict, f)
     return episode_id_dict
             
