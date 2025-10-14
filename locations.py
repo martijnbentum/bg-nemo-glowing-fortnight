@@ -21,6 +21,6 @@ csv_train = csv_dir / "train_segments.csv"
 
 csv_episode_dict_filename = BASE_DIR / "csv_episode_id_dict.json"
 
-program_directory = BASE_DIR / "programs"
+program_directory = BASE_DIR / "new_programs"
 program_info_filename = BASE_DIR / "program_info.json"
 
