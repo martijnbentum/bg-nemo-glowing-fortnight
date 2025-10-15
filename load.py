@@ -198,3 +198,13 @@ def load_csv_episode_segments(program_name, episode_id, other_programs = None):
     csv_segments = program['episodes'][episode_id]
     return csv_segments
 
+def load_hallucination_program(name):
+    '''load hallucination metrics for a given program name'''
+    f = locations.hallucinations_directory / f'{name}_hallucinations.json'
+    if not f.exists():
+        m = f"Hallucination file {f} does not exist."
+        raise ValueError(m)
+    with open(f) as fin:
+        d = json.load(fin)
+    return d
+
