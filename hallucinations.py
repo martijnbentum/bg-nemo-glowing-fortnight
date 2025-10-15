@@ -132,4 +132,35 @@ def handle_all_programs(overwrite = False, other_programs = None):
     for name in progressbar(program_names):
         handle_program_name(name, overwrite, other_programs)
 
+def load_hallucination_program(name):
+    return load.load_hallucination_program(name)
+
+def hallucination_program_to_segments(program):
+    segments = []
+    for episode in program.values():
+        segments.extend(episode)
+    return segments
+    
+def filter_segments(program, max_coverage=0.3):
+    output = {}
+    for identifier, segments in program.items():
+        output[identifier] = {}
+        clean= []
+        hallucinations = []
+        for i,segment in enumerate(segments):
+            segment['segment_index'] = i
+            if 'coverage_ratio' not in segment: continue
+            if segment['coverage_ratio'] > max_coverage: 
+                hallucinations.append(segment)
+            else: clean.append(segment)
+        output[identifier]['clean_segments'] = clean
+        output[identifier]['hallucinations'] = hallucinations
+    return output
+
+def program_name_to_filtered_segments(name, max_coverage=0.3):
+    program = load_hallucination_program(name)
+    segments = hallucination_program_to_segments(program)
+    clean, hallucinations = filter_segments(segments, max_coverage)
+    return clean, hallucinations
+
     
