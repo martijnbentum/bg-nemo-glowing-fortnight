@@ -169,6 +169,7 @@ def load_program_names():
     '''return a list of all program names from program_names.txt'''
     with open('../program_names.txt') as f:
         t = f.read().split('\n')
+    t = [x for x in t if x]
     return t
 
 def load_program_episode_count():
