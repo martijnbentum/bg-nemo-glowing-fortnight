@@ -1,16 +1,20 @@
+import json
+import load
+import locations
+from progressbar import progressbar
 import re
-from collections import defaultdict
+
 
 def text_to_word(text):
-    words = text.split(' ')
-    words = [w for w in words if w != '']
+    words = re.findall(r"\w+", text)
     return words
 
 def compute_type_token_ratio(text):
     words = text_to_word(text)
     types = list(set(words))
     type_token_ratio = len(types) / len(words)
-    print(f"Types: {len(types)}, Tokens: {len(words)}, TTR: {type_token_ratio:.3f}")
+    print(f"Types: {len(types)}, Tokens: {len(words)})")
+    print(f" TTR: {type_token_ratio:.3f}")
     return type_token_ratio
 
 def detect_repeated_phrases(text, n=3):
@@ -27,50 +31,40 @@ def detect_repeated_phrases(text, n=3):
     return {k: v for k, v in counts.items() if v > 1}
 
 
-def ngram_repeat_coverage(text,n=5,include_first_occurrence=True):
-    """
-    Compute coverage of text by repeated n-grams.
-    """
-    # tokenize into "words"  
-    words = re.findall(r"\w+", text)
+def ngram_repeat_coverage(text,n=5):
+    '''Compute coverage of text by repeated n-grams.
+    text - input text string
+    n - n-gram size (default 5)
+    '''
+    words = text_to_word(text)
     total_tokens = len(words)
-    if total_tokens == 0:
-        raise ValueError("Text contains no tokens.")
-
-    repeats = {}  #  {ngram_str: start_positions}
+    if total_tokens == 0: return None
     covered = [False] * total_tokens
-
-    positions = defaultdict(list)  # ngram_str -> count
+    positions = {}
 
     # collect all n-gram positions
     for i in range(total_tokens - n + 1):
         ngram = " ".join(words[i:i+n])
+        if ngram not in positions: positions[ngram] = []
         positions[ngram].append(i)
 
     # keep only repeats
-    repeats_n = {ngram: idxs for ngram, idxs in positions.items() if len(idxs) > 1}
+    repeats= {ngram: ids for ngram, ids in positions.items() if len(ids) > 1}
 
     # mark coverage
-    for ngram, idxs in repeats_n.items():
-        starts = idxs if include_first_occurrence else idxs[1:]
-        for i in starts:
+    for ngram, start_indices in repeats.items():
+        for i in start_indices:
             for t in range(i, i + n):
                 covered[t] = True
 
-    repeats = {k: len(v) for k,v in positions.items()}
+    repeats = {k: len(v) for k,v in repeats.items()}
 
     covered_tokens = sum(covered)
     coverage_ratio = covered_tokens / total_tokens
-
-    return {
-        "coverage_ratio": coverage_ratio,
-        "covered_tokens": covered_tokens,
-        "total_tokens": total_tokens,
-        "repeats": repeats,
-        "positions": positions,
-        "total_repeats": sum(repeats.values())
-    }
-
+    output = {"coverage_ratio": coverage_ratio,
+        "covered_tokens": covered_tokens,"total_tokens": total_tokens,
+        "repeats": repeats,"total_repeats": sum(repeats.values()) }
+    return output
 
 def csv_segment_to_text(segment):
     return segment[3].strip()
@@ -84,4 +78,58 @@ def csv_program_to_texts(program):
     for episode in program['episodes'].values():
         texts.extend(csv_episode_to_texts(episode))
     return texts
+
+def csv_program_to_segment_names(program):
+    segment_names= []
+    for episode in program['episodes'].values():
+        for segment in episode:
+            segment_names.append('-'.join(segment[-2:]))
+    return segment_names
+
+def csv_program_to_segment_name_text(program):
+    texts = csv_program_to_texts(program)
+    names = csv_program_to_segment_names(program)
+    segment_name_text= []
+    for name, text in zip(names, texts):
+        segment_name_text.append([name, text])
+    return segment_name_text
+
+def program_name_to_hallucination_dict_fileame(name):
+    f = locations.hallucinations_directory / f'{name}_hallucinations.json'
+    return f
+    
+def handle_program_name(name, overwrite = False, other_programs = None):
+    '''Process a single program name to compute hallucination metrics.
+    '''
+    f = program_name_to_hallucination_dict_fileame(name)
+    if f.exists() and not overwrite:
+        print(f"{f} exists, skipping.")
+        return
+    program = load.load_program(name, other_programs=other_programs)
+    nt = csv_program_to_segment_name_text(program)
+    output = {}
+    for segment_name, text in nt:
+        name, identifier = segment_name.split('-')
+        if identifier not in output: output[identifier] = []
+        segment_d = {'name': name, 'identifier': identifier, 'text': text}
+        rp = ngram_repeat_coverage(text)
+        if rp == None: 
+            output[identifier].append(segment_d)
+            continue
+        del rp['repeats']
+        segment_d.update(rp)
+        output[identifier].append(segment_d)
+    with open(f, 'w') as fout:
+        json.dump(output, fout)
+    return output
+
+def handle_all_programs(overwrite = False, other_programs = None):
+    '''Process all programs to compute hallucination metrics.
+    '''
+    if other_programs is None:
+        other_programs = load._load_other_programs()
+    program_names = load.load_program_names()
+    for name in progressbar(program_names):
+        handle_program_name(name, overwrite, other_programs)
+
     
