@@ -44,7 +44,8 @@ class Episode:
         try: segment_matcher.match_episode_segments(
             self.segments, self.csv_segments(), self.identifier)
         except Exception as e:
-            print(f"Error matching segments for episode {self.identifier}: {e}")
+            m = f"Error matching segments for episode {self.identifier}: {e}"
+            print(m)
             self.match_ok = False
         else: 
             self.match_ok = True
