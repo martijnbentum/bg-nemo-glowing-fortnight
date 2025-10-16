@@ -2,6 +2,8 @@ import json
 import load
 import locations
 from progressbar import progressbar
+import random
+
 
 def load_program_dict():
     return load.load_program_dict()
@@ -43,3 +45,47 @@ def save_segments_list(segments, filename, overwrite = False):
         for segment in segments:
             json_line = json.dumps(segment)
             f.write(json_line + '\n')
+
+def load_clean_segments():
+    return load.load_clean_segments()
+
+def shuffle_and_subset(segments = None, duration_hours = 5000, seed = 42):
+    random.seed(seed)
+    if segments is None:
+        segments = load_clean_segments()
+    duration_seconds = duration_hours * 3600
+    durs = segment_list_to_duration(segments)
+    total_dur = sum(durs)
+    if total_dur <= duration_seconds:
+        m = f'Total duration {total_dur/3600:.2f} hours is less than '
+        m += f'requested {duration_hours} hours.'
+        raise ValueError(m)
+    m = f'Total duration {total_dur/3600:.2f} hours, # segments {len(segments)}.'
+    print(m)
+    print('shuffling and subsetting ...')
+    random.shuffle(segments)
+    subset = []
+    selected_duration = 0
+    for segment in progressbar(segments):
+        selected_duration += segment['duration']
+        if selected_duration > duration_seconds:
+            break
+        subset.append(segment)
+    m = f' After subsetting, total duration {selected_duration/3600:.2f} '
+    m += f'hours, # segments {len(subset)}.'
+    print(m)
+    return subset
+
+def subset_5000_clean(overwrite = False):
+    f = locations.BASE_DIR / 'clean_5000h_segments.json'
+    if f.exists() and not overwrite:
+        print(f'loading {f} ...')
+        return load.load_subset_5000_clean_segments()
+    print(f'creating {f} ...')
+    segments = shuffle_and_subset(duration_hours = 5000)
+    save_segments_list(segments, f.name, 
+        overwrite = overwrite)
+    return segments
+        
+        
+
