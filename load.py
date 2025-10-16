@@ -136,19 +136,19 @@ def _make_or_load_csv_program_episode_dict(overwrite=False):
         json.dump(episode_id_dict, f)
     return episode_id_dict
             
-def load_program(name, other_programs = None):
-    '''load a program json file by name from locations.program_directory
+def load_csv_program(name, other_programs = None):
+    '''load a program json file by name from locations.csv_program_directory
     the programs are based on the csv files
     a program contains episodes, which contain segments
 
     all programs with a single episode are stored in other_programs.json
     '''
-    filename = locations.program_directory / f"{name}.json"
+    filename = locations.csv_program_directory / f"{name}.json"
     if other_programs is not None and name in other_programs:
         return other_programs[name]
     if not filename.exists():
         m = f"Program file {filename} does not exist."
-        with open(locations.program_directory / "other_programs.json") as f:
+        with open(locations.csv_program_directory / "other_programs.json") as f:
             d = json.load(f)
         if name in d:
             m += f" Found in other_programs.json."
@@ -158,10 +158,10 @@ def load_program(name, other_programs = None):
         d = json.load(f)
     return d
 
-def _load_other_programs():
+def _load_other_csv_programs():
     '''all programs with a single episode are stored in other_programs.json
     '''
-    with open(locations.program_directory / "other_programs.json") as f:
+    with open(locations.csv_program_directory / "other_programs.json") as f:
         d = json.load(f)
     return d
     
@@ -191,7 +191,7 @@ def load_csv_episode_segments(program_name, episode_id, other_programs = None):
     if not provided it will be loaded from other_programs.json which slows down
     processing
     '''
-    program = load_program(program_name, other_programs)
+    program = load_csv_program(program_name, other_programs)
     if episode_id not in program['episodes']:
         m = f"Episode id {episode_id} not found in program {program_name}."
         raise ValueError(m)
@@ -206,5 +206,49 @@ def load_hallucination_program(name):
         raise ValueError(m)
     with open(f) as fin:
         d = json.load(fin)
+    return d
+
+def _load_other_manifest_programs():
+    '''all programs with a single episode are stored in other_programs.json
+    '''
+    with open(locations.manifest_program_directory / "other_programs.json") as f:
+        d = json.load(f)
+    return d
+
+def load_manifest_program(name, other_programs = None):
+    '''load manifest for a given program name'''
+    f = locations.manifest_program_directory / f'{name}.json'
+    if other_programs is not None and name in other_programs:
+        return other_programs[name]
+    if not f.exists():
+        m = f"Manifest program file {f} does not exist."
+        raise ValueError(m)
+    with open(f) as fin:
+        d = json.load(fin)
+    return d
+
+def load_manifest_program_dict(other_programs = None):
+    if other_programs is None:
+        other_programs = _load_other_manifest_programs()
+    pn = load_program_names()
+    d = {}
+    for name in progressbar(pn):
+        d[name] = load_manifest_program(name, other_programs)
+    return d
+
+def load_program(name):
+    f = locations.program_directory / f'{name}.json'
+    if not f.exists():
+        m = f"program file {f} does not exist."
+        raise ValueError(m)
+    with open(f) as fin:
+        d = json.load(fin)
+    return d
+
+def load_program_dict():
+    d = {}
+    pn = load_program_names()
+    for name in progressbar(pn):
+        d[name] = load_program(name)
     return d
 
