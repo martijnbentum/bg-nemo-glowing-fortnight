@@ -6,6 +6,8 @@ from progressbar import progressbar
 import segment_matcher
 import textwrap
 
+'''preprocessing module'''
+
 def load_all_manifests(filenames = None):
     '''Load all manifest files corresponding to tarred sets of audio files.
     '''
@@ -60,7 +62,7 @@ class Segments:
         if manifest_filenames is None:
             manifest_filenames = locations.manifest_filenames
         if other_programs is None:
-            self.other_programs = load._load_other_programs()
+            self.other_programs = load._load_other_csv_programs()
         else: self.other_programs = other_programs
         if not make_episodes: do_match = False
         self.do_match = do_match
