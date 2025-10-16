@@ -252,3 +252,33 @@ def load_program_dict():
         d[name] = load_program(name)
     return d
 
+def load_segments(filename):
+    f = locations.BASE_DIR / filename
+    if not f.exists():
+        m = f"segments file {f} does not exist."
+        raise ValueError(m)
+    segments = []
+    with open(f) as fin:
+        for line in progressbar(fin.read().split('\n')):
+            if not line: continue
+            segments.append(json.loads(line))
+    return segments
+
+def load_clean_segments():
+    return load_segments('segments.json')
+
+def load_hallucination_segments():
+    return load_segments('hallucination_segments.json')
+
+def load_no_text_segments():
+    return load_segments('no_text_segments.json')
+
+def load_all_segments():
+    clean = load_clean_segments()
+    hallucinations = load_hallucination_segments()
+    no_text = load_no_text_segments()
+    return clean, hallucinations, no_text
+    
+def load_subset_5000_clean_segments():
+    return load_segments('clean_5000h_segments.json')
+
