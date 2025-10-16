@@ -1,8 +1,11 @@
+import copy
 import json
 import load
 import locations
 from progressbar import progressbar
 import re
+
+'''preprocessing module'''
 
 
 def text_to_word(text):
@@ -105,7 +108,7 @@ def handle_program_name(name, overwrite = False, other_programs = None):
     if f.exists() and not overwrite:
         print(f"{f} exists, skipping.")
         return
-    program = load.load_program(name, other_programs=other_programs)
+    program = load.load_csv_program(name, other_programs=other_programs)
     nt = csv_program_to_segment_name_text(program)
     output = {}
     for segment_name, text in nt:
@@ -127,7 +130,7 @@ def handle_all_programs(overwrite = False, other_programs = None):
     '''Process all programs to compute hallucination metrics.
     '''
     if other_programs is None:
-        other_programs = load._load_other_programs()
+        other_programs = load._load_other_csv_programs()
     program_names = load.load_program_names()
     for name in progressbar(program_names):
         handle_program_name(name, overwrite, other_programs)
@@ -163,4 +166,46 @@ def program_name_to_filtered_segments(name, max_coverage=0.3):
     clean, hallucinations = filter_segments(segments, max_coverage)
     return clean, hallucinations
 
+def handle_manifest_programs(manifest_program_dict = None,
+    other_programs = None, overwrite = False):
+    if manifest_program_dict is None:
+        manifest_program_dict = load.load_manifest_program_dict(other_programs)
+    directory = locations.program_directory
+    for name, program in progressbar(manifest_program_dict.items()):
+        filename = locations.program_directory / f'{name}.json'
+        if filename.exists() and not overwrite: 
+            print(f"{filename} exists, skipping.")
+            continue
+        for identifier, episode in program['episodes'].items():
+            segments = []
+            for s in episode['segments']:
+                s = clean_manifest_segment(s)
+                o = ngram_repeat_coverage(s['text'])
+                if o is not None:
+                    s['ngram_ratio'] = o['coverage_ratio']
+                else:
+                    s['ngram_ratio'] = None
+                    print(f'no text in segment {s}')
+                segments.append(s)
+            episode['segments'] = segments
+        with open(filename, 'w') as fout:
+            json.dump(program, fout)
+    return manifest_program_dict
+
+                
+                
+def clean_manifest_segment(segment):
+    s = copy.copy(segment)
+    s['text'] = s['whisper_text']
+    s['org_start'] = s['start_time']
+    s['org_end'] = s['end_time']
+    s['org_split'] = s['split']
+    del s['split']
+    del s['start_time']
+    del s['end_time']
+    del s['whisper_text']
+    del s['manifest_filename']
+    del s['levenshtein_ratio']
+    return s
+    
     
