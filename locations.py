@@ -33,4 +33,5 @@ program_directory = BASE_DIR / "programs"
 
 
 tar_base_path = Path('/projects/0/prjs1489/data/nibg/nemo/ogg/')
+audio_base_path = Path('/scratch-shared/mbentum1/audio/')
 
