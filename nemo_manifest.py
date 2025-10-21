@@ -9,7 +9,7 @@ def load_subset_5000_clean_segments():
     return segments
 
 def make_nemo_manifest(output_filename = None, segments = None, 
-    tar_base_path = None, audio_extension = '.ogg', dataset_id = 7, 
+    audio_base_path = None, audio_extension = '.ogg', dataset_id = 7, 
     overwrite = False):
     if output_filename is not None:
         p = Path(output_filename)
@@ -17,8 +17,9 @@ def make_nemo_manifest(output_filename = None, segments = None,
             print(f"File {p} exists, not overwriting.")
             return
     d = []
-    for segment in segments:
-        nm = segment_to_nemo_format(segment, tar_base_path, 
+    print(f'handling {len(segments)} segments')
+    for segment in progressbar(segments):
+        nm = segment_to_nemo_format(segment, audio_base_path, 
             audio_extension, dataset_id)
         d.append(nm)
     if output_filename is not None:
@@ -28,17 +29,19 @@ def make_nemo_manifest(output_filename = None, segments = None,
                 f.write(json_line + '\n')
     return d
 
-def segment_to_nemo_format(segment, tar_base_path = None, 
+def segment_to_nemo_format(segment, audio_base_path = None, 
     audio_extension = '.ogg', dataset_id = 7):
-    if tar_base_path is None:
-        tar_base_path = locations.tar_base_path
-    else: tar_base_path = Path(tar_base_path)
-    tar_base_path = tar_base_path / segment['org_split']
+    if audio_base_path is None:
+        audio_base_path = locations.audio_base_path
+    else: audio_base_path = Path(audio_base_path)
+    tf = Path(segment['tar_filename']).stem  + '_ogg'
+    audio_base_path = audio_base_path / tf
     af = segment['audio_filepath'].replace('.wav', audio_extension)
+    af = audio_base_path / af
     names = ['name', 'identifier', 'segment_id']
     identifier = '-'.join([segment[name] for name in names])
     d = {}
-    d['audio_filepath'] = af
+    d['audio_filepath'] = str(af)
     d['duration'] = segment['duration']
     d['text'] = segment['text']
     d['id'] = identifier
