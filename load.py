@@ -282,3 +282,15 @@ def load_all_segments():
 def load_subset_5000_clean_segments():
     return load_segments('clean_5000h_segments.json')
 
+def load_nemo_manifest(filename):
+    with open(filename) as f:
+        t = f.read().split('\n')
+    output = []
+    error = []
+    for line in progressbar(t):
+        try: d = json.loads(line)
+        except: error.append(line); continue
+        output.append(d)
+    print('error',error)
+    return output 
+
