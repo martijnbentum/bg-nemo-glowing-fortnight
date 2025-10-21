@@ -265,13 +265,13 @@ def load_segments(filename):
     return segments
 
 def load_clean_segments():
-    return load_segments('segments.json')
+    return load_segments('segments.jsonl')
 
 def load_hallucination_segments():
-    return load_segments('hallucination_segments.json')
+    return load_segments('hallucination_segments.jsonl')
 
 def load_no_text_segments():
-    return load_segments('no_text_segments.json')
+    return load_segments('no_text_segments.jsonl')
 
 def load_all_segments():
     clean = load_clean_segments()
@@ -280,9 +280,9 @@ def load_all_segments():
     return clean, hallucinations, no_text
     
 def load_subset_5000_clean_segments():
-    return load_segments('clean_5000h_segments.json')
+    return load_segments('clean_5000h_segments.jsonl')
 
-def load_nemo_manifest(filename):
+def load_nemo_manifest(filename = '../nemo_manifest_bg_5000h.jsonl'):
     with open(filename) as f:
         t = f.read().split('\n')
     output = []
